@@ -33,8 +33,8 @@ import requests
 # =============================================================================
 
 # Spotify API credentials (from https://developer.spotify.com/dashboard)
-SPOTIFY_CLIENT_ID = "c73121b4842c420e810d99a227c19a70"
-SPOTIFY_CLIENT_SECRET = "e648fc2486ea4295a1093b8c5c96a329"
+SPOTIFY_CLIENT_ID = "INSERT_YOUR_ID_HERE"
+SPOTIFY_CLIENT_SECRET = "INSERT_YOUR_SECRET_KEY_HERE"
 
 # Custom playlist cover image (optional)
 # Set to a JPEG file path, or None to skip

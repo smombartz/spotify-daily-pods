@@ -39,7 +39,7 @@ SPOTIFY_CLIENT_SECRET = "your_client_secret_here"
 # Custom playlist cover image (optional)
 # Set to a JPEG file path, or None to skip
 # Image should be square, max 256KB
-PLAYLIST_COVER_IMAGE = cover.jpg  # e.g., "/path/to/cover.jpg"
+PLAYLIST_COVER_IMAGE = "cover.jpg"  # e.g., "/path/to/cover.jpg"
 
 # Your podcasts - add/remove as needed
 # Find show_id in Spotify URL: https://open.spotify.com/show/[SHOW_ID]?si=...

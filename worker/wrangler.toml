@@ -1,0 +1,24 @@
+name = "daily-podcasts"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Your Spotify app's client ID (not the secret — set that with
+# `npx wrangler secret put SPOTIFY_CLIENT_SECRET`, see README.md)
+[vars]
+SPOTIFY_CLIENT_ID = "your-spotify-client-id"
+
+# Cron trigger - runs at 7am EST daily (12pm UTC). Adjust to your timezone.
+[triggers]
+crons = ["0 12 * * *"]
+
+# KV namespace for storing user tokens and settings.
+# Create one with `npx wrangler kv namespace create USERS` and paste the id here.
+[[kv_namespaces]]
+binding = "USERS"
+id = "your-kv-namespace-id"
+
+[observability]
+[observability.logs]
+enabled = false
+head_sampling_rate = 1
+invocation_logs = true

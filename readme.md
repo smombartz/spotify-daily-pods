@@ -6,6 +6,11 @@ A Python script that creates and maintains a Spotify playlist with the latest ep
 
 Spotify doesn't auto-queue podcast episodes. If you listen to multiple daily shows (news briefings, etc.), you have to manually find and queue each one every morning. This script does it for you.
 
+## Two ways to run it
+
+- **Python script** (this page) — simplest option: runs on your machine, tokens cached locally, automate with cron or a LaunchAgent.
+- **Cloudflare Worker** ([`worker/`](worker/README.md)) — self-hosted and fully automated: updates every morning on Cloudflare's free tier without your computer being on, and includes a web UI for connecting Spotify and managing your podcast list.
+
 ## Features
 
 - Creates a private "Daily Podcasts" playlist

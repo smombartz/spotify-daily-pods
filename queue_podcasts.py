@@ -13,6 +13,8 @@ Usage:
 Options:
     --days N        Include episodes from the last N days (default: 1)
     --keep-old      Don't remove old episodes, just add new ones
+    --keep-latest   Always include each show's most recent episode,
+                    even if it's older than the time window
     --playlist NAME Custom playlist name (default: "Daily Podcasts")
 """
 
@@ -445,17 +447,22 @@ class SpotifyDailyPodcasts:
             print(f"   ⚠️  Error setting cover: {e}")
             return False
     
-    def get_recent_episodes(self, show_id, days=1):
-        """Get episodes from the last N days."""
+    def get_recent_episodes(self, show_id, days=1, keep_latest=False):
+        """Get episodes from the last N days.
+
+        With keep_latest, falls back to the show's most recent episode
+        when nothing was released within the window.
+        """
         cutoff = datetime.now() - timedelta(days=days)
         episodes = []
-        
+        latest = None
+
         response = self.api_request(
             "GET",
             f"/shows/{show_id}/episodes",
             params={"limit": 10, "market": "US"}
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             for episode in data["items"]:
@@ -466,20 +473,28 @@ class SpotifyDailyPodcasts:
                         ep_date = datetime.strptime(release_date, "%Y-%m-%d")
                     else:  # YYYY
                         ep_date = datetime.strptime(release_date, "%Y")
-                    
+
+                    entry = {
+                        "uri": episode["uri"],
+                        "name": episode["name"],
+                        "duration_ms": episode["duration_ms"],
+                        "release_date": release_date
+                    }
+
+                    if latest is None or ep_date > latest[0]:
+                        latest = (ep_date, entry)
+
                     if ep_date >= cutoff:
-                        episodes.append({
-                            "uri": episode["uri"],
-                            "name": episode["name"],
-                            "duration_ms": episode["duration_ms"],
-                            "release_date": release_date
-                        })
+                        episodes.append(entry)
                 except ValueError:
                     continue
-        
+
+        if not episodes and keep_latest and latest:
+            episodes.append(latest[1])
+
         return episodes
     
-    def update_daily_playlist(self, days=1, keep_old=False):
+    def update_daily_playlist(self, days=1, keep_old=False, keep_latest=False):
         """Main function to update the daily podcast playlist."""
         print("🎧 Daily Podcast Playlist")
         print("=" * 50)
@@ -509,7 +524,7 @@ class SpotifyDailyPodcasts:
         for podcast in PODCASTS:
             print(f"\n🔍 {podcast['name']}...")
             
-            episodes = self.get_recent_episodes(podcast["show_id"], days)
+            episodes = self.get_recent_episodes(podcast["show_id"], days, keep_latest)
             if episodes:
                 for ep in episodes:
                     if ep["uri"] not in existing_episodes:
@@ -559,6 +574,11 @@ def main():
         help="Don't remove old episodes, just add new ones"
     )
     parser.add_argument(
+        "--keep-latest", "-l",
+        action="store_true",
+        help="Always include each show's most recent episode, even if it's older than the time window"
+    )
+    parser.add_argument(
         "--playlist", "-p",
         type=str,
         default="Daily Podcasts",
@@ -572,7 +592,7 @@ def main():
     if not spotify.ensure_authenticated():
         sys.exit(1)
     
-    spotify.update_daily_playlist(days=args.days, keep_old=args.keep_old)
+    spotify.update_daily_playlist(days=args.days, keep_old=args.keep_old, keep_latest=args.keep_latest)
 
 
 if __name__ == "__main__":

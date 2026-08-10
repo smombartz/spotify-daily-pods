@@ -94,6 +94,10 @@ python queue_podcasts.py --days 2
 # Add new episodes without removing old ones
 python queue_podcasts.py --keep-old
 
+# Always keep each show's most recent episode, even if it's older
+# than the time window (so shows without a new episode stay queued)
+python queue_podcasts.py --keep-latest
+
 # Use a custom playlist name
 python queue_podcasts.py --playlist "Morning News"
 

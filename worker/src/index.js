@@ -204,6 +204,7 @@ async function handleCallback(url, env) {
     display_name: profile.display_name,
     refresh_token: tokens.refresh_token,
     podcasts: DEFAULT_PODCASTS,
+    keep_latest: false,
     playlist_id: null,
     created_at: new Date().toISOString(),
     last_updated: null
@@ -278,6 +279,7 @@ async function handleStatus(url, env) {
       display_name: userData.display_name,
       playlist_id: userData.playlist_id,
       podcasts: userData.podcasts,
+      keep_latest: userData.keep_latest === true,
       last_updated: userData.last_updated
     });
   }
@@ -337,22 +339,37 @@ async function handleConfig(request, url, env) {
   }
   
   if (request.method === "GET") {
-    return Response.json({ podcasts: userData.podcasts });
+    return Response.json({
+      podcasts: userData.podcasts,
+      keep_latest: userData.keep_latest === true
+    });
   }
-  
+
   if (request.method === "POST") {
     try {
       const body = await request.json();
+      let changed = false;
       if (Array.isArray(body.podcasts)) {
         userData.podcasts = body.podcasts;
+        changed = true;
+      }
+      if (typeof body.keep_latest === "boolean") {
+        userData.keep_latest = body.keep_latest;
+        changed = true;
+      }
+      if (changed) {
         await env.USERS.put(`user:${userId}`, JSON.stringify(userData));
-        return Response.json({ success: true, podcasts: userData.podcasts });
+        return Response.json({
+          success: true,
+          podcasts: userData.podcasts,
+          keep_latest: userData.keep_latest === true
+        });
       }
     } catch (e) {
       return Response.json({ error: "Invalid JSON" }, { status: 400 });
     }
   }
-  
+
   return Response.json({ error: "Method not allowed" }, { status: 405 });
 }
 
@@ -468,6 +485,21 @@ async function handleSettings(url, env) {
       color: #888;
       margin-top: 0.5rem;
     }
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      cursor: pointer;
+    }
+    .toggle-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      accent-color: #1DB954;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .toggle-label { font-weight: 500; }
     .cover-preview {
       width: 80px;
       height: 80px;
@@ -540,6 +572,20 @@ async function handleSettings(url, env) {
       </p>
     </div>
     
+    <div class="card">
+      <h2>Options</h2>
+      <label class="toggle-row">
+        <input type="checkbox" id="keep-latest" ${userData.keep_latest === true ? 'checked' : ''} onchange="saveKeepLatest()">
+        <div>
+          <div class="toggle-label">Keep latest episode</div>
+          <div class="help" style="margin-top: 0.25rem;">
+            If a show hasn't released a new episode today, keep its most recent
+            episode in the playlist so every podcast always has its last episode queued.
+          </div>
+        </div>
+      </label>
+    </div>
+
     <div class="card">
       <h2>Actions</h2>
       <button id="update-btn" class="btn btn-secondary" onclick="updateNow()">Update Playlist Now</button>
@@ -633,6 +679,23 @@ async function handleSettings(url, env) {
       }
     }
     
+    async function saveKeepLatest() {
+      const checkbox = document.getElementById('keep-latest');
+      const response = await fetch('/api/podcasts?user=' + userId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keep_latest: checkbox.checked })
+      });
+      if (response.ok) {
+        showMessage(checkbox.checked
+          ? 'Latest episodes will be kept in the playlist'
+          : 'Only episodes from the last day will be added');
+      } else {
+        checkbox.checked = !checkbox.checked;
+        showMessage('Failed to save setting', true);
+      }
+    }
+
     async function removePodcast(index) {
       const name = podcasts[index].name;
       podcasts.splice(index, 1);
@@ -741,15 +804,26 @@ async function handlePodcastsApi(request, url, env) {
   
   // Get podcasts
   if (request.method === "GET") {
-    return Response.json({ podcasts: userData.podcasts });
+    return Response.json({
+      podcasts: userData.podcasts,
+      keep_latest: userData.keep_latest === true
+    });
   }
   
-  // Update podcasts
+  // Update podcasts / settings
   if (request.method === "POST") {
     try {
       const body = await request.json();
+      let changed = false;
       if (Array.isArray(body.podcasts)) {
         userData.podcasts = body.podcasts;
+        changed = true;
+      }
+      if (typeof body.keep_latest === "boolean") {
+        userData.keep_latest = body.keep_latest;
+        changed = true;
+      }
+      if (changed) {
         await env.USERS.put(`user:${userId}`, JSON.stringify(userData));
         return Response.json({ success: true });
       }
@@ -936,31 +1010,44 @@ class SpotifyClient {
     });
   }
 
-  async getRecentEpisodes(showId, days = 1) {
+  async getRecentEpisodes(showId, days = 1, keepLatest = false) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    
+
     const episodes = [];
-    
+    let latest = null;
+
     try {
       const data = await this.api("GET", `/shows/${showId}/episodes?limit=10&market=US`);
-      
+
       for (const episode of data.items) {
         const releaseDate = new Date(episode.release_date);
-        
+
+        const entry = {
+          uri: episode.uri,
+          name: episode.name,
+          duration_ms: episode.duration_ms,
+          release_date: episode.release_date
+        };
+
+        if (!latest || releaseDate > latest.date) {
+          latest = { date: releaseDate, entry };
+        }
+
         if (releaseDate >= cutoff) {
-          episodes.push({
-            uri: episode.uri,
-            name: episode.name,
-            duration_ms: episode.duration_ms,
-            release_date: episode.release_date
-          });
+          episodes.push(entry);
         }
       }
     } catch (e) {
       console.error(`Error fetching episodes for ${showId}:`, e);
     }
-    
+
+    // Fall back to the show's most recent episode when nothing
+    // was released within the window
+    if (episodes.length === 0 && keepLatest && latest) {
+      episodes.push(latest.entry);
+    }
+
     return episodes;
   }
 }
@@ -1019,8 +1106,10 @@ async function updateUserPlaylist(spotify, userData, env) {
     // Fetch new episodes
     const allEpisodes = [];
     
+    const keepLatest = userData.keep_latest === true;
+
     for (const podcast of userData.podcasts) {
-      const episodes = await spotify.getRecentEpisodes(podcast.show_id, 1);
+      const episodes = await spotify.getRecentEpisodes(podcast.show_id, 1, keepLatest);
       log.push(`${podcast.name}: ${episodes.length} episode(s)`);
       allEpisodes.push(...episodes);
     }

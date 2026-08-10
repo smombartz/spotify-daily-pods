@@ -4,6 +4,8 @@ A self-hosted Cloudflare Worker that keeps a Spotify playlist ("Daily Pods") fil
 
 This is the automated alternative to the Python script in the repo root: same idea, but always-on and configurable from the browser.
 
+![The Daily Pods settings page for managing podcasts and triggering updates](../images/screenshot-app.avif)
+
 ## How it works
 
 - Every day at the scheduled time, the worker fetches the newest episode of each podcast you follow and replaces the contents of your "Daily Pods" playlist with them.

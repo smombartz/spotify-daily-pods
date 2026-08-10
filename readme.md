@@ -2,6 +2,8 @@
 
 A Python script that creates and maintains a Spotify playlist with the latest episodes from your favorite daily podcasts. Run it each morning and your playlist is ready to go.
 
+![The Daily Pods playlist in Spotify with today's episodes queued](images/screenshot-spotify.avif)
+
 ## Why?
 
 Spotify doesn't auto-queue podcast episodes. If you listen to multiple daily shows (news briefings, etc.), you have to manually find and queue each one every morning. This script does it for you.
@@ -106,6 +108,8 @@ python queue_podcasts.py --days 2 --keep-old --playlist "Weekly Pods"
 ```
 
 ## Custom Playlist Cover
+
+<img src="images/cover.avif" alt="Daily Pods playlist cover" width="160">
 
 Set a custom cover image by editing the config:
 
